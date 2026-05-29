@@ -119,10 +119,10 @@ def get_validated_assets(
         logger.error("Failed to generate a valid business after all retries.")
 
     return None
-
+''''
 
 if __name__ == "__main__":
     logger.info(
         "Not a runnable file. To run the business owner, please use api or test files"
     )
-    '''
+
