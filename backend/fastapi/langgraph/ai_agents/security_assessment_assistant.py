@@ -3,18 +3,20 @@ from langchain.schema import Document
 import re
 from loguru import logger
 from typing import List, Dict
-from functools import partial
+from functools import partial, lru_cache
 from langgraph.graph import StateGraph, START, END, MessagesState
 
 from ..prompts.security_assessment_assistant import (
     security_assessment_assistant_prompt_message,
 )
 from ..helpers.model_config import fetch_model_from_ollama
-from backend.fastapi.langgraph.helpers.vector_db_operations import (
-    setup_vectorstore_saa,
-    custom_numbered_header_split,
-    load_markdown,
-)
+#from backend.fastapi.langgraph.helpers.vector_db_operations import (
+#    setup_vectorstore_saa,
+#    custom_numbered_header_split,
+#    load_markdown,
+#)
+from backend.fastapi.langgraph.helpers.vector_db_operations import setup_vectorstore_saa
+
 from langchain_core.tools.retriever import create_retriever_tool
 
 
@@ -49,7 +51,7 @@ def _initialize_security_assistant(
     persist_dir: str = "backend/chromadb_vectorstore",
 ):
     try:
-        vectorstore = setup_vectorstore_saa(
+        vectorstore, split_docs = setup_vectorstore_saa(
             file_name=file_name,
             persist_dir=persist_dir,
             embedding_model=embedding_model,
@@ -69,7 +71,7 @@ def _initialize_security_assistant(
         llm = fetch_model_from_ollama("llama3.2", temperature=0.2)
 
         # 4. Get split_docs + section map using your existing splitting logic
-        split_docs = custom_numbered_header_split(load_markdown(input_file_path))
+        #split_docs = custom_numbered_header_split(load_markdown(input_file_path))
         section_map = {
             doc.metadata["section_number"]: doc.metadata["title"]
             for doc in split_docs
@@ -151,7 +153,7 @@ def security_assistant_node(
         )
         return {"messages": [error_msg]}
 
-
+@lru_cache(maxsize=1)
 def create_security_assistant_graph():
     """Creates a compiled LangGraph for the security assistant chatbot."""
     try:
