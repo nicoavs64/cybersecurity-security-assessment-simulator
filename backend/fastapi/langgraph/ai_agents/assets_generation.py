@@ -7,11 +7,11 @@ from ..helpers.graph_state_classes import (
 from ..helpers.file_operations import retrieve_input_file
 from ..helpers.model_config import fetch_model_from_ollama
 from ..prompts.assets_generation_prompt import asset_generator_prompt_message
-from ..helpers.output_validation import (
-    create_assets_validation_prompt,
-    validate_generated_output,
-    format_items_for_llm,
-)
+#from ..helpers.output_validation import (
+#    create_assets_validation_prompt,
+#    validate_generated_output,
+#    format_items_for_llm,
+#)
 
 
 def generate_assets(
@@ -48,8 +48,25 @@ def generate_assets(
             f"Failed to produce output with {llm_model_name}. Details below:\n{e}"
         )
         return state
+        
+def get_validated_assets(state: BusinessState) -> BusinessState | None:
+    generated_assets = generate_assets(state)
 
+    if not getattr(generated_assets, "assets", None):
+        logger.error("Failed to generate assets.")
+        return None
 
+    return BusinessState(
+        business_name=state["business_name"],
+        business_location=state["business_location"],
+        business_contact_info=state["business_contact_info"],
+        business_activity=state["business_activity"],
+        business_description=state["business_description"],
+        assets=generated_assets,
+        potential_threats=ThreatItemCollection(threats=[]),
+    )
+
+'''
 def get_validated_assets(
     state: BusinessState, max_retries: int = 3
 ) -> BusinessState | None:
@@ -108,3 +125,4 @@ if __name__ == "__main__":
     logger.info(
         "Not a runnable file. To run the business owner, please use api or test files"
     )
+    '''
