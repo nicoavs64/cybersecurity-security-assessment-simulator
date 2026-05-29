@@ -1,11 +1,12 @@
 from loguru import logger
 from ..helpers.graph_state_classes import BusinessState, ThreatItemCollection
 from ..helpers.model_config import fetch_model_from_ollama
-from ..helpers.output_validation import (
-    validate_generated_output,
-    create_threats_validation_prompt,
-    format_items_for_llm,
-)
+#from ..helpers.output_validation import (
+#    validate_generated_output,
+#    create_threats_validation_prompt,
+#    format_items_for_llm,
+#)
+from ..helpers.output_validation import format_items_for_llm
 from ..prompts.threats_generation_prompt import threat_generator_prompt_message
 
 
@@ -44,6 +45,24 @@ def generate_threats(
         return state
 
 
+def get_validated_threats(state: BusinessState) -> BusinessState | None:
+    generated_threats = generate_threats(state)
+
+    if not getattr(generated_threats, "threats", None):
+        logger.error("Failed to generate threats.")
+        return None
+
+    return BusinessState(
+        business_name=state["business_name"],
+        business_location=state["business_location"],
+        business_contact_info=state["business_contact_info"],
+        business_activity=state["business_activity"],
+        business_description=state["business_description"],
+        assets=state["assets"],
+        potential_threats=generated_threats,
+    )
+
+'''
 def get_validated_threats(
     state: BusinessState, max_retries: int = 3
 ) -> BusinessState | None:
@@ -96,7 +115,7 @@ def get_validated_threats(
         logger.error("Failed to generate a valid business after all retries.")
 
     return None
-
+'''
 
 if __name__ == "__main__":
     logger.info(
