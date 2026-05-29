@@ -13,6 +13,11 @@ from langchain_ollama import OllamaEmbeddings
 from langchain.schema import Document
 from backend.fastapi.langgraph.helpers.graph_state_classes import BusinessState
 
+OLLAMA_BASE_URL = os.environ.get(
+    "OLLAMA_BASE_URL",
+    os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
+)
+
 
 def sanitize_chroma_collection_name(name: str) -> str:
     """
@@ -112,7 +117,10 @@ def embed_text(text_to_embed: str, embedding_function: str = "mxbai-embed-large"
     :param reason:str - the reason for the embedding. This is more of a logging parameter, leave as is
     """
     try:
-        response = ollama.embed(model=f"{embedding_function}", input=f"{text_to_embed}")
+        #response = ollama.embed(model=f"{embedding_function}", input=f"{text_to_embed}")
+        client = ollama.Client(host=OLLAMA_BASE_URL)
+        response = client.embed(model=f"{embedding_function}", input=f"{text_to_embed}")
+
         return response["embeddings"][0]
 
     except Exception as e:
@@ -176,7 +184,8 @@ def ingest_business_profile(
 
 def get_vectorstore(
     collection_name: str,
-    db_path: str = "../chromadb_vectorstore",
+    #db_path: str = "../chromadb_vectorstore",
+    db_path: str = "backend/chromadb_vectorstore",
     embedding_model: str = "mxbai-embed-large",
 ):
     """
@@ -191,7 +200,12 @@ def get_vectorstore(
         sanitized_name = sanitize_chroma_collection_name(collection_name)
 
         # Set up LangChain-compatible embedding function
-        embedding_function: Embeddings = OllamaEmbeddings(model=embedding_model)
+        #embedding_function: Embeddings = OllamaEmbeddings(model=embedding_model)
+        embedding_function: Embeddings = OllamaEmbeddings(
+            model=embedding_model,
+            base_url=OLLAMA_BASE_URL,
+        )
+
 
         vectorstore = Chroma(
             client=PersistentClient(path=db_path),
@@ -213,7 +227,7 @@ def setup_vectorstore_saa(
     input_file_path: str = "../input_files/Security Assessment",
 ):
     """Initialize vector store. Load vectorstore if exists."""
-
+    """
     collection_name = sanitize_chroma_collection_name(file_name)
     vectorstore_path = os.path.join(persist_dir, collection_name)
 
@@ -234,3 +248,30 @@ def setup_vectorstore_saa(
         )
 
     return vectorstore
+    """
+    collection_name = sanitize_chroma_collection_name(file_name)
+    split_docs = custom_numbered_header_split(load_markdown(input_file_path))
+
+    client = PersistentClient(path=persist_dir)
+    existing_collections = [col.name for col in client.list_collections()]
+
+    if collection_name in existing_collections:
+        logger.info(f"Loading existing vectorstore collection: {collection_name}")
+        vectorstore = get_vectorstore(
+            collection_name=collection_name,
+            db_path=persist_dir,
+            embedding_model=embedding_model,
+        )
+    else:
+        logger.info(f"Creating new vectorstore collection: {collection_name}")
+        vectorstore = Chroma.from_documents(
+            documents=split_docs,
+            embedding=OllamaEmbeddings(
+                model=embedding_model,
+                base_url=OLLAMA_BASE_URL,
+            ),
+            persist_directory=persist_dir,
+            collection_name=collection_name,
+        )
+
+    return vectorstore, split_docs
