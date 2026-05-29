@@ -10,10 +10,10 @@ from ..helpers.graph_state_classes import (
     AssetCollection,
     ThreatItemCollection,
 )
-from ..helpers.output_validation import (
-    validate_generated_output,
-    create_business_validation_prompt,
-)
+#from ..helpers.output_validation import (
+#    validate_generated_output,
+#    create_business_validation_prompt,
+#)
 
 
 def generate_business(
@@ -55,6 +55,24 @@ def generate_business(
         return
 
 
+def get_validated_business() -> BusinessState | None:
+    business = generate_business()
+
+    if not business:
+        logger.error("Failed to generate a business.")
+        return None
+
+    return BusinessState(
+        business_name=business.business_name,
+        business_location=business.business_location,
+        business_contact_info=business.business_contact_info,
+        business_activity=business.business_activity,
+        business_description=business.business_description,
+        assets=AssetCollection(assets=[]),
+        potential_threats=ThreatItemCollection(threats=[]),
+    )
+
+'''
 def get_validated_business(max_retries: int = 3) -> BusinessState | None:
     """
     Calls business generator and validator. Re-generates the business if the output is not satisfactory
@@ -109,7 +127,7 @@ def get_validated_business(max_retries: int = 3) -> BusinessState | None:
         logger.error("Failed to generate a valid business after all retries.")
 
     return None
-
+'''
 
 if __name__ == "__main__":
     logger.info(
